@@ -1,21 +1,27 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Project, SourceFile, Dependency
+from app.models.models import Project, SourceFile, Dependency, User
 from app.schemas import DependencyGraph, GraphNode, GraphEdge
-from app.dependencies import get_authenticated_project
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
 
 @router.get("/{project_id}/graph", response_model=DependencyGraph)
 def get_graph(
-    project: Project = Depends(get_authenticated_project),
+    project_id: str,
     db: Session = Depends(get_db),
-) -> DependencyGraph:
-    """Retrieve the dependency graph nodes and edges for a project."""
-    files = db.query(SourceFile).filter(SourceFile.project_id == project.id).all()
-    deps = db.query(Dependency).filter(Dependency.project_id == project.id).all()
+    current_user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.user_id and project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not found")
+
+    files = db.query(SourceFile).filter(SourceFile.project_id == project_id).all()
+    deps = db.query(Dependency).filter(Dependency.project_id == project_id).all()
 
     nodes = [
         GraphNode(
@@ -42,4 +48,3 @@ def get_graph(
     ]
 
     return DependencyGraph(nodes=nodes, edges=edges)
-
