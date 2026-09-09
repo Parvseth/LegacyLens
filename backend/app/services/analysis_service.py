@@ -15,7 +15,7 @@ import os
 import hashlib
 import shutil
 import zipfile
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple, Dict, Set, Any
 from sqlalchemy.orm import Session
 from app.models.models import Project, SourceFile, Dependency, ProjectStatus, RiskLevel
 from app.services.parsers import get_parser
@@ -101,10 +101,10 @@ def detect_duplicates(file_paths: List[str]) -> Set[str]:
                 lines = [l.strip() for l in f if l.strip() and not l.strip().startswith(("#", "//", "/*", "*"))]
             for i in range(len(lines) - WINDOW + 1):
                 block = "\n".join(lines[i:i + WINDOW])
-                h = hashlib.md5(block.encode()).hexdigest()
+                h = hashlib.sha256(block.encode("utf-8")).hexdigest()
                 hash_to_files.setdefault(h, []).append(fp)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Error reading file %s for duplicate detection: %s", fp, e)
 
     duplicated: Dict[str, int] = {}
     for h, fps in hash_to_files.items():
@@ -125,13 +125,13 @@ def detect_circular_deps(edges: Dict[str, List[str]]) -> Set[str]:
     Returns set of file paths that are in any cycle.
     """
     index_counter = [0]
-    stack = []
+    stack: List[str] = []
     lowlinks: Dict[str, int] = {}
     index: Dict[str, int] = {}
     on_stack: Dict[str, bool] = {}
     sccs: List[List[str]] = []
 
-    def strongconnect(v):
+    def strongconnect(v: str) -> None:
         index[v] = index_counter[0]
         lowlinks[v] = index_counter[0]
         index_counter[0] += 1
@@ -146,7 +146,7 @@ def detect_circular_deps(edges: Dict[str, List[str]]) -> Set[str]:
                 lowlinks[v] = min(lowlinks[v], index[w])
 
         if lowlinks[v] == index[v]:
-            scc = []
+            scc: List[str] = []
             while True:
                 w = stack.pop()
                 on_stack[w] = False
@@ -160,10 +160,10 @@ def detect_circular_deps(edges: Dict[str, List[str]]) -> Set[str]:
             try:
                 strongconnect(v)
             except RecursionError:
-                pass
+                logger.warning("Recursion limit hit while finding circular dependencies on %s", v)
 
     # Files in SCCs of size > 1 are in circular dependencies
-    circular = set()
+    circular: Set[str] = set()
     for scc in sccs:
         if len(scc) > 1:
             circular.update(scc)
@@ -401,8 +401,9 @@ def _rebuild_fv(sf: SourceFile):
     fv.has_hardcoded_api_keys = sf.has_hardcoded_api_keys
     fv.has_god_class = sf.has_god_class
     fv.has_long_methods = sf.has_long_methods
-    fv_dict = sf.feature_vector or {}
+    fv_dict: Dict[str, Any] = sf.feature_vector or {}
     fv.long_method_names = fv_dict.get("long_method_names", [])
     fv.god_class_names = fv_dict.get("god_class_names", [])
     fv.imports = fv_dict.get("imports", [])
     return fv
+

@@ -14,10 +14,7 @@ export default function LandingPage() {
   const [uploadLogs, setUploadLogs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!isLoading) {
-      setUploadLogs([]);
-      return;
-    }
+    if (!isLoading) return;
 
     const messages = [
       "Uploading file...",
@@ -29,8 +26,6 @@ export default function LandingPage() {
     ];
 
     let currentIndex = 0;
-    setUploadLogs([messages[0]]);
-
     const interval = setInterval(() => {
       currentIndex++;
       if (currentIndex < messages.length) {
@@ -43,11 +38,12 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, [isLoading]);
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (!file.name.endsWith('.zip')) {
       toast.error('Please upload a .zip file');
       return;
     }
+    setUploadLogs(["Uploading file..."]);
     setIsLoading(true);
     try {
       const project = await projectsApi.uploadZip(file);
@@ -58,15 +54,17 @@ export default function LandingPage() {
       toast.error(error?.response?.data?.detail || 'Upload failed');
     } finally {
       setIsLoading(false);
+      setUploadLogs([]);
     }
-  };
+  }, [navigate]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFileUpload(file);
-  }, []);
+  }, [handleFileUpload]);
+
 
   const handleGithubClone = async () => {
     if (!githubUrl.startsWith('https://github.com/')) {

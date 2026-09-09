@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api/client';
@@ -29,15 +30,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(localStorage.getItem(TOKEN_KEY)));
 
   // On mount verify token is still valid
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_KEY);
-    if (!storedToken) {
-      setIsLoading(false);
-      return;
-    }
+    if (!storedToken) return;
+
     api.get('/auth/me', {
       headers: { Authorization: `Bearer ${storedToken}` },
     })
@@ -53,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });

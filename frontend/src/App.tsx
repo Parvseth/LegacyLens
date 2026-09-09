@@ -1,14 +1,29 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
-import LandingPage from './pages/LandingPage';
-import AnalysisPage from './pages/AnalysisPage';
-import SettingsPage from './pages/SettingsPage';
-import ProjectsPage from './pages/ProjectsPage';
+import Navbar from './components/shared/Navbar';
+
+// Eagerly loaded (tiny + always needed on first paint)
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import Navbar from './components/shared/Navbar';
+
+// Lazy-loaded pages → code-split into separate chunks
+const LandingPage   = lazy(() => import('./pages/LandingPage'));
+const AnalysisPage  = lazy(() => import('./pages/AnalysisPage'));
+const SettingsPage  = lazy(() => import('./pages/SettingsPage'));
+const ProjectsPage  = lazy(() => import('./pages/ProjectsPage'));
+
+/** Minimal skeleton shown during lazy-chunk loading */
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 
 function App() {
   return (
@@ -26,12 +41,14 @@ function App() {
               <ProtectedRoute>
                 <div className="min-h-screen">
                   <Navbar />
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/projects/:id" element={<AnalysisPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                  </Routes>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/projects" element={<ProjectsPage />} />
+                      <Route path="/projects/:id" element={<AnalysisPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                    </Routes>
+                  </Suspense>
                 </div>
               </ProtectedRoute>
             }

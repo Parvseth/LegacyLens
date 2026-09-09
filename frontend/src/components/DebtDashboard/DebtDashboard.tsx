@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import type { DebtSummary, DebtCategory } from '../../types';
 import ScoreGauge from '../shared/ScoreGauge';
 import { SeverityBadge } from '../shared/RiskBadge';
-import { Bug, Layers, RotateCcw, Copy, Key, Hash } from 'lucide-react';
+import { Bug, Layers, RotateCcw, Copy, Key, Hash, Download } from 'lucide-react';
 
 interface DebtDashboardProps {
   data: DebtSummary;
@@ -26,6 +26,26 @@ export default function DebtDashboard({ data }: DebtDashboardProps) {
     color: CATEGORY_META[cat as DebtCategory]?.color || '#6366f1',
   }));
 
+  const exportToCsv = () => {
+    const header = 'File,Category,Description,Severity';
+    const rows = items.map(item =>
+      [
+        `"${item.file_path}"`,
+        `"${CATEGORY_META[item.category as DebtCategory]?.label || item.category}"`,
+        `"${item.description.replace(/"/g, '""')}"`,
+        `"${item.severity}"`,
+      ].join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'technical-debt.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       {/* Score + Category Chart */}
@@ -37,7 +57,18 @@ export default function DebtDashboard({ data }: DebtDashboardProps) {
         >
           <ScoreGauge score={overall_debt_score} label="Technical Debt Score" size="lg" />
           
-          <div className="mt-6 border-t border-slate-800/60 pt-4 text-left w-full space-y-2">
+          {/* TDR Formula Card */}
+          <div className="mt-4 p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 w-full">
+            <p className="text-[10px] font-semibold text-violet-300 uppercase tracking-widest mb-1">Formula</p>
+            <p className="text-[11px] font-mono text-slate-300 leading-relaxed">
+              TDR = (Remediation Cost / Dev Cost) × 100%
+            </p>
+            <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+              Scores above 50% indicate the codebase costs more to maintain than it would to rewrite modernised.
+            </p>
+          </div>
+
+          <div className="mt-4 border-t border-slate-800/60 pt-4 text-left w-full space-y-2">
             <h4 className="text-xs font-semibold text-slate-300">Technical Debt</h4>
             <p className="text-[11px] text-slate-400 leading-relaxed">
               Technical debt represents the accumulation of poorly designed, duplicated, or overly complex code. If left unchecked, it makes future updates slower and more difficult. 
@@ -126,10 +157,19 @@ export default function DebtDashboard({ data }: DebtDashboardProps) {
         transition={{ delay: 0.3 }}
         className="glass-card overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-slate-800">
+        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
             Debt Items ({items.length})
           </h3>
+          {items.length > 0 && (
+            <button
+              onClick={exportToCsv}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-primary-400 transition-colors px-3 py-1.5 rounded-lg border border-slate-700 hover:border-primary-500/40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full data-table">

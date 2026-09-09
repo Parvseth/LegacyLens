@@ -1,7 +1,10 @@
 import os
 import re
+import logging
 from typing import List, Tuple
 from app.services.parsers.base import BaseParser, FeatureVector
+
+logger = logging.getLogger(__name__)
 
 try:
     import javalang
@@ -43,6 +46,7 @@ class JavaParser(BaseParser):
             fv.has_hardcoded_api_keys = self._detect_api_keys(source)
 
         except Exception as e:
+            logger.warning("Error parsing Java file %s: %s", file_path, e)
             fv.parse_error = str(e)
             # Fallback to regex even on javalang failure
             try:
@@ -51,8 +55,8 @@ class JavaParser(BaseParser):
                 self._parse_with_regex(fv, source, source.splitlines())
                 fv.has_hardcoded_secrets = self._detect_hardcoded_secrets(source)
                 fv.has_hardcoded_api_keys = self._detect_api_keys(source)
-            except Exception:
-                pass
+            except Exception as err:
+                logger.error("Fallback regex parser failed for %s: %s", file_path, err)
         return fv
 
     # ── AST-based parsing (javalang) ──────────────────────────────
@@ -61,11 +65,13 @@ class JavaParser(BaseParser):
                               project_root: str, file_path: str):
         try:
             tree = javalang.parse.parse(source)
-        except Exception:
+        except Exception as e:
+            logger.debug("javalang AST parsing failed for %s (%s), falling back to regex", file_path, e)
             self._parse_with_regex(fv, source, lines)
             return
 
         # Imports
+
         imports = [imp.path for imp in (tree.imports or [])]
         fv.imports = imports
         fv.import_count = len(imports)

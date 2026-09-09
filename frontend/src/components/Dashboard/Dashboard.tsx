@@ -183,9 +183,9 @@ export default function Dashboard({ data }: DashboardProps) {
                     color: '#f1f5f9',
                     fontSize: '13px',
                   }}
-                  formatter={(value: any, name: any) => [
-                    `${value} files (${((value / project.total_files) * 100).toFixed(1)}%)`,
-                    name,
+                  formatter={(value?: number | string | readonly (number | string)[], name?: string | number) => [
+                    `${value ?? 0} files (${((Number(value ?? 0) / (project.total_files || 1)) * 100).toFixed(1)}%)`,
+                    String(name ?? ''),
                   ]}
                 />
                 <Legend
