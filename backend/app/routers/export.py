@@ -34,7 +34,7 @@ def _resolve_user(
 @router.get("/{project_id}/export")
 def export_report(
     project_id: str,
-    format: str = Query(default="pdf", regex="^(pdf|docx)$"),
+    format: str = Query(default="pdf", pattern="^(pdf|docx)$"),
     api_key: str = Query(default=""),
     provider: str = Query(default="openai"),
     token: str | None = Query(default=None),

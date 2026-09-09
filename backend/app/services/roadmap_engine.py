@@ -57,7 +57,7 @@ def generate_roadmap(files: List[SourceFile]) -> List[Dict]:
         is_critical = f.risk_level == RiskLevel.CRITICAL
         is_high = f.risk_level == RiskLevel.HIGH
         is_circular = f.has_circular_dep
-        total_deps = f.import_count
+        total_deps = f.import_count or 0
 
         if is_critical or is_circular:
             phases[3]["files"].append(f.relative_path)

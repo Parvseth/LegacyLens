@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -22,62 +22,74 @@ const TERMINAL_LINES = [
 ];
 
 function TerminalBackground() {
+  const items = React.useMemo(() => {
+    return Array.from({ length: 50 }).map((_, i) => {
+      const isCyan = i % 3 === 0;
+      const isPurple = i % 5 === 0;
+      const colorClass = isCyan
+        ? 'text-cyan-400 drop-shadow-[0_0_2px_#06b6d4]'
+        : isPurple
+          ? 'text-fuchsia-400 drop-shadow-[0_0_2px_#d946ef]'
+          : 'text-white';
+
+      let sizeClass = 'text-[10px] font-medium';
+      if (i % 7 === 0) sizeClass = 'text-[16px] font-black tracking-widest';
+      else if (i % 4 === 0) sizeClass = 'text-[13px] font-bold';
+      else if (i % 3 === 0) sizeClass = 'text-[8px] opacity-90';
+
+      const left = (i * 137) % 100;
+      const top = (i * 251) % 100;
+      const initialOpacity = ((i * 37) % 20) / 100 + 0.1;
+      const showSecondLine = i % 2 === 0;
+
+      return {
+        id: i,
+        colorClass,
+        sizeClass,
+        left,
+        top,
+        initialOpacity,
+        showSecondLine,
+        lineIndex: i % TERMINAL_LINES.length,
+        secondLineIndex: (i + 1) % TERMINAL_LINES.length,
+        duration: 1.5 + (i % 4),
+        delay: i % 3,
+      };
+    });
+  }, []);
+
   return (
     <div className="absolute inset-0 overflow-hidden select-none z-0 bg-[#020008]">
-      
       {/* Glitch Bars */}
-      <motion.div 
+      <motion.div
         className="absolute top-[40%] left-0 w-[100%] h-[3px] bg-cyan-400/80 shadow-[0_0_10px_#22d3ee] pointer-events-none"
         animate={{ opacity: [0, 1, 0], y: [-50, 50, -50] }}
         transition={{ duration: 0.3, repeat: Infinity, repeatDelay: 2 }}
       />
-      <motion.div 
+      <motion.div
         className="absolute top-[55%] right-0 w-[100%] h-[2px] bg-fuchsia-500/80 shadow-[0_0_10px_#d946ef] pointer-events-none"
         animate={{ opacity: [0, 0.8, 0], y: [50, -50, 50] }}
         transition={{ duration: 0.25, repeat: Infinity, repeatDelay: 3.5 }}
       />
 
-      {/* Scattered completely random horizontal blocks of varying sizes, but CRISP */}
-      {Array.from({ length: 50 }).map((_, i) => {
-        const isCyan = i % 3 === 0;
-        const isPurple = i % 5 === 0;
-        
-        // Very low blur radiuses (1px/2px) to ensure extreme clarity
-        const colorClass = isCyan 
-          ? 'text-cyan-400 drop-shadow-[0_0_2px_#06b6d4]' 
-          : isPurple 
-            ? 'text-fuchsia-400 drop-shadow-[0_0_2px_#d946ef]' 
-            : 'text-white';
-        
-        // Randomly sized fonts
-        let sizeClass = 'text-[10px] font-medium';
-        if (i % 7 === 0) sizeClass = 'text-[16px] font-black tracking-widest';
-        else if (i % 4 === 0) sizeClass = 'text-[13px] font-bold';
-        else if (i % 3 === 0) sizeClass = 'text-[8px] opacity-90';
-
-        // Completely random scatter positioning (the previous effect the user liked)
-        const left = (i * 137) % 100;
-        const top = (i * 251) % 100;
-
-        return (
-          <motion.div
-            key={i}
-            className={`absolute whitespace-nowrap leading-tight ${colorClass} ${sizeClass} cursor-crosshair transition-colors duration-200 hover:text-white`}
-            style={{ 
-              left: `${left}%`, 
-              top: `${top}%`,
-            }}
-            initial={{ opacity: Math.random() * 0.2 + 0.1 }}
-            animate={{ opacity: [0.1, 0.4, 0.1] }}
-            whileHover={{ opacity: 1, scale: 1.15, textShadow: '0 0 15px currentColor', zIndex: 50 }}
-            transition={{ duration: 1.5 + (i % 4), repeat: Infinity, delay: (i % 3) }}
-          >
-            {TERMINAL_LINES[i % TERMINAL_LINES.length]}
-            <br />
-            {Math.random() > 0.5 && TERMINAL_LINES[(i + 1) % TERMINAL_LINES.length]}
-          </motion.div>
-        );
-      })}
+      {items.map((item) => (
+        <motion.div
+          key={item.id}
+          className={`absolute whitespace-nowrap leading-tight ${item.colorClass} ${item.sizeClass} cursor-crosshair transition-colors duration-200 hover:text-white`}
+          style={{
+            left: `${item.left}%`,
+            top: `${item.top}%`,
+          }}
+          initial={{ opacity: item.initialOpacity }}
+          animate={{ opacity: [0.1, 0.4, 0.1] }}
+          whileHover={{ opacity: 1, scale: 1.15, textShadow: '0 0 15px currentColor', zIndex: 50 }}
+          transition={{ duration: item.duration, repeat: Infinity, delay: item.delay }}
+        >
+          {TERMINAL_LINES[item.lineIndex]}
+          <br />
+          {item.showSecondLine && TERMINAL_LINES[item.secondLineIndex]}
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -115,14 +127,15 @@ export default function RegisterPage() {
     try {
       await register(email, password);
       toast.success('NODE REGISTERED', { style: { background: '#1a0b2e', color: '#e879f9', border: '1px solid #d946ef', borderRadius: '0', fontFamily: 'monospace' }});
-      // Navigation is handled by the useEffect above once `user` is populated in context
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'REGISTRATION_FAILED';
+    } catch (err: unknown) {
+      const errResponse = err as { response?: { data?: { detail?: string } } };
+      const msg = errResponse?.response?.data?.detail || 'REGISTRATION_FAILED';
       setError(msg.toUpperCase());
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#020008] flex items-center justify-center relative overflow-hidden font-mono text-slate-200">

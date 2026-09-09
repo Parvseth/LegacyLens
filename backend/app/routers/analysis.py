@@ -4,35 +4,21 @@ from typing import Optional
 from app.database import get_db
 from app.models.models import Project, SourceFile, RiskLevel, User
 from app.schemas import SourceFileOut, FileList, DashboardSummary, RiskDistribution, ProjectOut
-from app.dependencies import get_current_user
-
+from app.dependencies import get_project_for_user
 router = APIRouter()
-
-
-def _get_owned_project(project_id: str, user: User, db: Session) -> Project:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.user_id and project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not found")
-    return project
-
 
 @router.get("/{project_id}/files", response_model=FileList)
 def get_files(
-    project_id: str,
     language: Optional[str] = None,
     risk_level: Optional[str] = None,
     sort_by: str = "risk_score",
     order: str = "desc",
     limit: int = Query(default=100, le=500),
     offset: int = 0,
+    project: Project = Depends(get_project_for_user),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    _get_owned_project(project_id, current_user, db)
-
-    q = db.query(SourceFile).filter(SourceFile.project_id == project_id)
+    q = db.query(SourceFile).filter(SourceFile.project_id == project.id)
     if language:
         q = q.filter(SourceFile.language == language.lower())
     if risk_level:
@@ -55,15 +41,13 @@ def get_files(
 
 @router.get("/{project_id}/files/{file_id}", response_model=SourceFileOut)
 def get_file(
-    project_id: str,
     file_id: str,
+    project: Project = Depends(get_project_for_user),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    _get_owned_project(project_id, current_user, db)
     f = db.query(SourceFile).filter(
         SourceFile.id == file_id,
-        SourceFile.project_id == project_id
+        SourceFile.project_id == project.id
     ).first()
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
@@ -72,12 +56,10 @@ def get_file(
 
 @router.get("/{project_id}/dashboard", response_model=DashboardSummary)
 def get_dashboard(
-    project_id: str,
+    project: Project = Depends(get_project_for_user),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    project = _get_owned_project(project_id, current_user, db)
-    files = db.query(SourceFile).filter(SourceFile.project_id == project_id).all()
+    files = db.query(SourceFile).filter(SourceFile.project_id == project.id).all()
 
     distribution = RiskDistribution(
         low=sum(1 for f in files if f.risk_level == RiskLevel.LOW),

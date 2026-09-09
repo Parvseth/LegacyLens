@@ -31,18 +31,26 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    try {
-      const data = await projectsApi.list();
-      setProjects(data.projects);
-    } catch {
-      toast.error('Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    let active = true;
+    projectsApi.list()
+      .then((data) => {
+        if (active) {
+          setProjects(data.projects);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          toast.error('Failed to load projects');
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  useEffect(() => { load(); }, []);
 
   const handleDelete = async (e: React.MouseEvent, projectId: string) => {
     e.preventDefault();

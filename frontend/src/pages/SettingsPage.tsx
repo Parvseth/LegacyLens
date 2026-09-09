@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Settings, Key, Eye, EyeOff, CheckCircle2, Info } from 'lucide-react';
@@ -17,19 +17,17 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const uid = user?.id || 'guest';
   const [provider, setProvider] = useState(() => localStorage.getItem(`legacylens_llm_provider_${uid}`) || 'openai');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(`legacylens_api_key_${uid}_${localStorage.getItem(`legacylens_llm_provider_${uid}`) || 'openai'}`) || '');
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setApiKey(localStorage.getItem(`legacylens_api_key_${uid}_${provider}`) || '');
-  }, [provider, uid]);
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProvider = e.target.value;
     setProvider(newProvider);
     localStorage.setItem(`legacylens_llm_provider_${uid}`, newProvider);
+    setApiKey(localStorage.getItem(`legacylens_api_key_${uid}_${newProvider}`) || '');
   };
+
 
   const handleSave = () => {
     localStorage.setItem(`legacylens_api_key_${uid}_${provider}`, apiKey);

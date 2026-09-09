@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Sequence
 from pydantic import BaseModel
 from app.models.models import ProjectStatus, SourceType, RiskLevel
 
@@ -39,14 +39,14 @@ class ProjectOut(BaseModel):
     id: str
     name: str
     source_type: SourceType
-    source_url: Optional[str]
+    source_url: Optional[str] = None
     status: ProjectStatus
     total_files: int
     avg_risk_score: float
     overall_debt_score: float
     overall_security_score: float
     migration_readiness_score: float
-    error_message: Optional[str]
+    error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -54,7 +54,7 @@ class ProjectOut(BaseModel):
 
 
 class ProjectList(BaseModel):
-    projects: List[ProjectOut]
+    projects: Sequence[ProjectOut]
     total: int
 
 
@@ -80,19 +80,19 @@ class SourceFileOut(BaseModel):
     has_hardcoded_api_keys: bool
     has_god_class: bool
     has_long_methods: bool
-    feature_vector: Optional[Dict[str, Any]]
+    feature_vector: Optional[Dict[str, Any]] = None
     risk_score: float
     risk_level: RiskLevel
-    risk_factors: Optional[List[str]]
+    risk_factors: Optional[List[str]] = None
     security_score: float
     debt_score: float
-    ai_recommendation: Optional[str]
+    ai_recommendation: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
 
 class FileList(BaseModel):
-    files: List[SourceFileOut]
+    files: Sequence[SourceFileOut]
     total: int
 
 
@@ -117,8 +117,8 @@ class GraphEdge(BaseModel):
 
 
 class DependencyGraph(BaseModel):
-    nodes: List[GraphNode]
-    edges: List[GraphEdge]
+    nodes: Sequence[GraphNode]
+    edges: Sequence[GraphEdge]
 
 
 # ──────────── Debt Schemas ────────────
@@ -136,7 +136,7 @@ class DebtItemOut(BaseModel):
 
 class DebtSummary(BaseModel):
     overall_debt_score: float
-    items: List[DebtItemOut]
+    items: Sequence[DebtItemOut]
     by_category: Dict[str, int]
 
 
@@ -149,8 +149,8 @@ class SecurityFindingOut(BaseModel):
     finding_type: str
     severity: str
     description: str
-    line_number: Optional[int]
-    snippet: Optional[str]
+    line_number: Optional[int] = None
+    snippet: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -158,7 +158,7 @@ class SecurityFindingOut(BaseModel):
 class SecuritySummary(BaseModel):
     overall_security_score: float
     total_findings: int
-    findings: List[SecurityFindingOut]
+    findings: Sequence[SecurityFindingOut]
     by_type: Dict[str, int]
     by_severity: Dict[str, int]
 
@@ -169,13 +169,13 @@ class RoadmapPhase(BaseModel):
     phase_number: int
     name: str
     description: str
-    files: List[str]
+    files: Sequence[str]
     estimated_complexity: str
 
 
 class MigrationRoadmap(BaseModel):
     project_id: str
-    phases: List[RoadmapPhase]
+    phases: Sequence[RoadmapPhase]
     narrative: Optional[str] = None
 
 
@@ -206,5 +206,6 @@ class RiskDistribution(BaseModel):
 class DashboardSummary(BaseModel):
     project: ProjectOut
     risk_distribution: RiskDistribution
-    top_risky_files: List[SourceFileOut]
-    top_debt_files: List[SourceFileOut]
+    top_risky_files: Sequence[SourceFileOut]
+    top_debt_files: Sequence[SourceFileOut]
+

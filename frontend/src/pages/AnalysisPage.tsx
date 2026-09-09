@@ -45,29 +45,12 @@ export default function AnalysisPage() {
   const [security, setSecurity] = useState<SecuritySummary | null>(null);
   const [roadmap, setRoadmap] = useState<MigrationRoadmap | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const { user } = useAuth();
   const uid = user?.id || 'guest';
   const [provider] = useState(() => localStorage.getItem(`legacylens_llm_provider_${uid}`) || 'openai');
   const [apiKey] = useState(() => localStorage.getItem(`legacylens_api_key_${uid}_${localStorage.getItem(`legacylens_llm_provider_${uid}`) || 'openai'}`) || '');
 
-  const fetchProject = async () => {
-    if (!id) return;
-    try {
-      const p = await projectsApi.get(id);
-      setProject(p);
-      return p;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        toast.error('Project not found');
-      } else {
-        console.error('Failed to fetch project status:', error);
-      }
-    }
-  };
-
-  const loadTabData = async (tab: Tab, p?: Project) => {
+  const loadTabData = async (tab: Tab, p?: Project | null) => {
     const proj = p || project;
     if (!id || !proj || proj.status !== 'complete') return;
     try {
@@ -96,34 +79,47 @@ export default function AnalysisPage() {
   // Poll while not complete
   useEffect(() => {
     if (!id) return;
-    fetchProject().then(p => {
-      if (p?.status === 'complete') {
-        loadTabData('dashboard', p);
-      }
-    });
 
-    const interval = setInterval(async () => {
-      const p = await fetchProject();
-      if (p?.status === 'complete' || p?.status === 'failed') {
-        clearInterval(interval);
-        setPollingInterval(null);
-        if (p.status === 'complete') {
-          loadTabData('dashboard', p);
+    let active = true;
+    projectsApi.get(id).then((p) => {
+      if (active) {
+        setProject(p);
+        if (p?.status === 'complete') {
+          analysisApi.getDashboard(id).then((d) => {
+            if (active) setDashboard(d);
+          }).catch(() => {});
         }
       }
+    }).catch(() => {});
+
+    const interval = setInterval(async () => {
+      try {
+        const p = await projectsApi.get(id);
+        if (!active) return;
+        setProject(p);
+        if (p?.status === 'complete' || p?.status === 'failed') {
+          clearInterval(interval);
+          if (p.status === 'complete') {
+            const d = await analysisApi.getDashboard(id);
+            if (active) setDashboard(d);
+          }
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
     }, 3000);
-    setPollingInterval(interval);
 
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [id]);
-
-  useEffect(() => {
-    loadTabData(activeTab);
-  }, [activeTab, project?.status]);
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
+    loadTabData(tab);
   };
+
 
   const handleGenerateAI = async () => {
     if (!id) return;
@@ -135,9 +131,10 @@ export default function AnalysisPage() {
       const narrative = await aiApi.generateNarrative(id, apiKey, provider);
       if (roadmap) setRoadmap({ ...roadmap, narrative: narrative.narrative });
       // Reload dashboard
-      setDashboard(null);
-      setTimeout(() => loadTabData('dashboard'), 100);
+      const updatedDashboard = await analysisApi.getDashboard(id);
+      setDashboard(updatedDashboard);
     } catch {
+
       toast.error('Failed to generate AI recommendations');
     } finally {
       setIsGeneratingAI(false);
